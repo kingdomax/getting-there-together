@@ -26,6 +26,14 @@ namespace Vrsys
         [Tooltip("If true, a TMP_Text element will be searched in child components and a text will be set equal to photonView.Owner.NickName. Note, this feature may create unwanted results if the GameObject, which contains this script, holds any other TMP_Text fields but the actual NameTag.")]
         public bool setNameTagToNickname = true;
 
+        public enum PrefabColor
+        {
+            Red,
+            Blue,
+            Default
+        }
+        public PrefabColor color = PrefabColor.Default;
+
         [Tooltip("The spawn position of this NetworkUser")]
         public Vector3 spawnPosition = Vector3.zero;
 
@@ -81,7 +89,8 @@ namespace Vrsys
         private void InitializeAvatar()
         {
             //avatarAnatomy.nameTag.SetActive(false);
-            Color clr = ParseColorFromPrefs(new Color(.6f, .6f, .6f));
+            //Color clr = ParseColorFromPrefs(new Color(.6f, .6f, .6f));
+            Color clr = ParseColorFromPrefs(color);
             photonView.RPC("SetColor", RpcTarget.AllBuffered, new object[] { new Vector3(clr.r, clr.g, clr.b) });
         }
 
@@ -146,6 +155,17 @@ namespace Vrsys
             {
                 receivedScale = (Vector3)stream.ReceiveNext();
             }
+        }
+
+        public Color ParseColorFromPrefs(PrefabColor col)
+        {
+            switch (col)
+            {
+                case PrefabColor.Blue: return new Color(0f, 0f, 1f);
+                case PrefabColor.Red: return new Color(1f, 0f, 0f);
+                case PrefabColor.Default: return new Color(.6f, .6f, .6f);
+            }
+            return new Color(.6f, .6f, .6f);
         }
 
         public static Color ParseColorFromPrefs(Color fallback)

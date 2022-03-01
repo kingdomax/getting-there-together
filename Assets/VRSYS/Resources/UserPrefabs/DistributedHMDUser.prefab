@@ -939,7 +939,8 @@ MonoBehaviour:
   viewingSetup: {fileID: 3067897177355849430, guid: 5f3223a43b49f64459682e9bf9f62fb1,
     type: 3}
   setNameTagToNickname: 1
-  spawnPosition: {x: 70, y: 22, z: 39}
+  color: 1
+  spawnPosition: {x: 76, y: 22, z: 31}
   tags: []
 --- !u!114 &5553992836488130771
 MonoBehaviour:

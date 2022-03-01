@@ -1,6 +1,4 @@
 using Photon.Pun;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.XR;
 using UnityEngine.XR.Interaction.Toolkit;
@@ -19,6 +17,31 @@ namespace Vrsys
 
         ViewingSetupHMDAnatomy viewingSetupHmd;
         private XRController controller;
+
+        bool EnsureViewingSetup()
+        {
+            if (viewingSetupHmd == null)
+            {
+                if (NetworkUser.localNetworkUser != null)
+                {
+                    var viewingSetup = NetworkUser.localNetworkUser.viewingSetupAnatomy;
+                    if (viewingSetup is ViewingSetupHMDAnatomy)
+                    {
+                        viewingSetupHmd = (ViewingSetupHMDAnatomy)viewingSetup;
+                    }
+                }
+            }
+            return viewingSetupHmd != null;
+        }
+
+        bool EnsureController()
+        {
+            if (controller == null)
+            {
+                controller = viewingSetupHmd.rightController.GetComponent<XRController>();
+            }
+            return controller != null;
+        }
 
         // Start is called before the first frame update
         void Start()
@@ -59,31 +82,6 @@ namespace Vrsys
         {
             viewingSetupHmd.childAttachmentRoot.transform.position += translationInput;
             viewingSetupHmd.childAttachmentRoot.transform.rotation *= Quaternion.Euler(rotationInput);
-        }
-
-        bool EnsureViewingSetup()
-        {
-            if (viewingSetupHmd == null)
-            {
-                if (NetworkUser.localNetworkUser != null)
-                {
-                    var viewingSetup = NetworkUser.localNetworkUser.viewingSetupAnatomy;
-                    if (viewingSetup is ViewingSetupHMDAnatomy)
-                    {
-                        viewingSetupHmd = (ViewingSetupHMDAnatomy)viewingSetup;
-                    }
-                }
-            }
-            return viewingSetupHmd != null;
-        }
-
-        bool EnsureController() 
-        {
-            if(controller == null)
-            {
-                controller = viewingSetupHmd.rightController.GetComponent<XRController>();
-            }
-            return controller != null;
         }
     }
 }
