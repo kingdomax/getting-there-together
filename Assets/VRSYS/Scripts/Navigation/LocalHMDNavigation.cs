@@ -18,6 +18,24 @@ namespace Vrsys
         ViewingSetupHMDAnatomy viewingSetupHmd;
         private XRController controller;
 
+        // Start is called before the first frame update
+        void Start()
+        {
+            // This script should only compute for the local user
+            if (!photonView.IsMine)
+                Destroy(this);
+        }
+
+        // Update is called once per frame
+        void Update()
+        {
+            // Only calculate & apply input if local user fully instantiated
+            if (EnsureViewingSetup() && EnsureController())
+            {
+                MapInput(CalcTranslationInput(), CalcRotationInput());
+            }
+        }
+
         bool EnsureViewingSetup()
         {
             if (viewingSetupHmd == null)
@@ -41,24 +59,6 @@ namespace Vrsys
                 controller = viewingSetupHmd.rightController.GetComponent<XRController>();
             }
             return controller != null;
-        }
-
-        // Start is called before the first frame update
-        void Start()
-        {
-            // This script should only compute for the local user
-            if (!photonView.IsMine)
-                Destroy(this);
-        }
-
-        // Update is called once per frame
-        void Update()
-        {
-            // Only calculate & apply input if local user fully instantiated
-            if (EnsureViewingSetup() && EnsureController())
-            {
-                MapInput(CalcTranslationInput(), CalcRotationInput());
-            }
         }
 
         private Vector3 CalcTranslationInput()

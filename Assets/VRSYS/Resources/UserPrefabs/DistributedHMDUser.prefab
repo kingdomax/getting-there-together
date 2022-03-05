@@ -857,6 +857,7 @@ GameObject:
   - component: {fileID: 406615263228009300}
   - component: {fileID: 5553992836488130771}
   - component: {fileID: 3166681448584678136}
+  - component: {fileID: 5816480633439745402}
   m_Layer: 0
   m_Name: DistributedHMDUser
   m_TagString: Untagged
@@ -940,7 +941,7 @@ MonoBehaviour:
     type: 3}
   setNameTagToNickname: 1
   color: 1
-  spawnPosition: {x: 76, y: 22, z: 31}
+  spawnPosition: {x: 76, y: 22.5, z: 31}
   tags: []
 --- !u!114 &5553992836488130771
 MonoBehaviour:
@@ -973,6 +974,21 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   translationVelocity: 3
   rotationVelocity: 5
+--- !u!114 &5816480633439745402
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6433134019601706862}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bc5adc7bc65974c4bb69c0f3cbf10bda, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  layerMask:
+    serializedVersion: 2
+    m_Bits: 275
 --- !u!1 &7283603110788178048
 GameObject:
   m_ObjectHideFlags: 0

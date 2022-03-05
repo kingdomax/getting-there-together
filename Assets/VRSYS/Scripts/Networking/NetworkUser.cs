@@ -63,10 +63,11 @@ namespace Vrsys
                 NetworkUser.localGameObject = gameObject;
                 NetworkUser.localHead = avatarAnatomy.head;
                 
-                InitializeAvatar();
                 InitializeViewing();
+                InitializeAvatar();
                 //HideHandsInFavorOfControllers();
             }
+
             if (PhotonNetwork.IsConnected)
             {
                 gameObject.name = photonView.Owner.NickName + (photonView.IsMine ? " [Local User]" : " [External User]");
@@ -76,22 +77,6 @@ namespace Vrsys
                     nameTagTextComponent.text = photonView.Owner.NickName;
                 }
             }
-        }
-
-        private void Update()
-        {
-            if (!photonView.IsMine && hasPendingScaleUpdate)
-            {
-                transform.localScale = Vector3.Lerp(transform.localScale, receivedScale, Time.deltaTime);
-            }
-        }
-
-        private void InitializeAvatar()
-        {
-            //avatarAnatomy.nameTag.SetActive(false);
-            //Color clr = ParseColorFromPrefs(new Color(.6f, .6f, .6f));
-            Color clr = ParseColorFromPrefs(color);
-            photonView.RPC("SetColor", RpcTarget.AllBuffered, new object[] { new Vector3(clr.r, clr.g, clr.b) });
         }
 
         private void InitializeViewing()
@@ -118,14 +103,12 @@ namespace Vrsys
             }
         }
 
-        private void HideHandsInFavorOfControllers()
+        private void InitializeAvatar()
         {
-            AvatarHMDAnatomy ahmda = GetComponent<AvatarHMDAnatomy>();
-            if (ahmda != null)
-            {
-                ahmda.handRight.SetActive(false);
-                ahmda.handLeft.SetActive(false);
-            }
+            //avatarAnatomy.nameTag.SetActive(false);
+            //Color clr = ParseColorFromPrefs(new Color(.6f, .6f, .6f));
+            Color clr = ParseColorFromPrefs(color);
+            photonView.RPC("SetColor", RpcTarget.AllBuffered, new object[] { new Vector3(clr.r, clr.g, clr.b) });
         }
 
         [PunRPC]
@@ -142,6 +125,14 @@ namespace Vrsys
             if (nameTagTextComponent && setNameTagToNickname)
             {
                 nameTagTextComponent.text = name;
+            }
+        }
+
+        private void Update()
+        {
+            if (!photonView.IsMine && hasPendingScaleUpdate)
+            {
+                transform.localScale = Vector3.Lerp(transform.localScale, receivedScale, Time.deltaTime);
             }
         }
 
@@ -182,6 +173,16 @@ namespace Vrsys
                 default: color = fallback; break;
             }
             return color;
+        }
+
+        private void HideHandsInFavorOfControllers()
+        {
+            AvatarHMDAnatomy ahmda = GetComponent<AvatarHMDAnatomy>();
+            if (ahmda != null)
+            {
+                ahmda.handRight.SetActive(false);
+                ahmda.handLeft.SetActive(false);
+            }
         }
     }
 }
