@@ -2,6 +2,7 @@ using UnityEngine;
 
 namespace Vrsys
 {
+    // Provide easy access to its own children component (HMD view)
     public class ViewingSetupHMDAnatomy : ViewingSetupAnatomy
     {
         public GameObject leftController;
@@ -25,6 +26,13 @@ namespace Vrsys
             {
                 rightController = transform.Find("Camera Offset/Right Controller").gameObject;
             }
+        }
+
+        public override void Teleport(Vector3 position, Quaternion rotation)
+        {
+            Debug.Log("Hi! ViewHMDAnatomy");
+            childAttachmentRoot.transform.position = position;
+            childAttachmentRoot.transform.rotation = rotation;
         }
     }
 }

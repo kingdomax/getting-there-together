@@ -5,20 +5,20 @@ using UnityEngine.XR.Interaction.Toolkit;
 
 namespace Vrsys
 {
+    // Scripts that will only compute for the local user (owning the PhotonView in their parent hierarchy). 
     public class LocalHMDNavigation : MonoBehaviourPunCallbacks
     {
         [Tooltip("Translation Velocity [m/sec]")]
         [Range(0.1f, 10.0f)]
         public float translationVelocity = 3.0f;
-
         [Tooltip("Rotation Velocity [degree/sec]")]
         [Range(1.0f, 10.0f)]
         public float rotationVelocity = 2.0f;
 
-        ViewingSetupHMDAnatomy viewingSetupHmd;
-        private XRController controller;
+        ViewingSetupHMDAnatomy _viewingSetupHmd;
+        private XRController _controller;
+        private GroupNavigation _groupNavScript;
 
-        // Start is called before the first frame update
         void Start()
         {
             // This script should only compute for the local user
@@ -26,11 +26,10 @@ namespace Vrsys
                 Destroy(this);
         }
 
-        // Update is called once per frame
         void Update()
         {
             // Only calculate & apply input if local user fully instantiated
-            if (EnsureViewingSetup() && EnsureController())
+            if (EnsureViewingSetup() && EnsureController() && EnsureGroupNavScript())
             {
                 MapInput(CalcTranslationInput(), CalcRotationInput());
             }
@@ -38,35 +37,35 @@ namespace Vrsys
 
         bool EnsureViewingSetup()
         {
-            if (viewingSetupHmd == null)
+            if (_viewingSetupHmd == null && NetworkUser.localNetworkUser != null)
             {
-                if (NetworkUser.localNetworkUser != null)
+                var viewingSetup = NetworkUser.localNetworkUser.viewingSetupAnatomy;
+                if (viewingSetup is ViewingSetupHMDAnatomy)
                 {
-                    var viewingSetup = NetworkUser.localNetworkUser.viewingSetupAnatomy;
-                    if (viewingSetup is ViewingSetupHMDAnatomy)
-                    {
-                        viewingSetupHmd = (ViewingSetupHMDAnatomy)viewingSetup;
-                    }
+                    _viewingSetupHmd = (ViewingSetupHMDAnatomy)viewingSetup;
                 }
             }
-            return viewingSetupHmd != null;
+            return _viewingSetupHmd != null;
         }
 
         bool EnsureController()
         {
-            if (controller == null)
-            {
-                controller = viewingSetupHmd.rightController.GetComponent<XRController>();
-            }
-            return controller != null;
+            if (_controller == null) { _controller = _viewingSetupHmd.rightController.GetComponent<XRController>(); }
+            return _controller != null;
+        }
+
+        bool EnsureGroupNavScript()
+        {
+            if (_groupNavScript == null) { _groupNavScript = GetComponent<GroupNavigation>(); }
+            return _groupNavScript.CurrentStage == GroupNavigation.NavigationStage.Adjourning;
         }
 
         private Vector3 CalcTranslationInput()
         {
             float trigger;
-            controller.inputDevice.TryGetFeatureValue(CommonUsages.trigger, out trigger);
+            _controller.inputDevice.TryGetFeatureValue(CommonUsages.trigger, out trigger);
             trigger = trigger > 0.1 ? trigger : 0.0f;
-            var dir = viewingSetupHmd.rightController.transform.forward;
+            var dir = _viewingSetupHmd.rightController.transform.forward;
             dir.y = 0;
             return dir.normalized * trigger * translationVelocity * Time.deltaTime;
         }
@@ -74,14 +73,14 @@ namespace Vrsys
         private Vector3 CalcRotationInput()
         {
             Vector2 joystick;
-            controller.inputDevice.TryGetFeatureValue(CommonUsages.primary2DAxis, out joystick);
+            _controller.inputDevice.TryGetFeatureValue(CommonUsages.primary2DAxis, out joystick);
             return new Vector3(0, joystick.x * 0.25f * rotationVelocity, 0);
         }
 
         private void MapInput(Vector3 translationInput, Vector3 rotationInput) 
         {
-            viewingSetupHmd.childAttachmentRoot.transform.position += translationInput;
-            viewingSetupHmd.childAttachmentRoot.transform.rotation *= Quaternion.Euler(rotationInput);
+            _viewingSetupHmd.childAttachmentRoot.transform.position += translationInput;
+            _viewingSetupHmd.childAttachmentRoot.transform.rotation *= Quaternion.Euler(rotationInput);
         }
     }
 }

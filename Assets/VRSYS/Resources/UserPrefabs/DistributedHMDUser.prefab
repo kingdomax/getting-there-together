@@ -937,12 +937,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0f90b4178c1979a4fa8450b0c45634a3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  setNameTagToNickname: 1
+  spawnPosition: {x: 76, y: 22.5, z: 31}
+  spawnRotation: {x: 0, y: 320, z: 0}
+  color: 1
+  tags: []
   viewingSetup: {fileID: 3067897177355849430, guid: 5f3223a43b49f64459682e9bf9f62fb1,
     type: 3}
-  setNameTagToNickname: 1
-  color: 1
-  spawnPosition: {x: 76, y: 22.5, z: 31}
-  tags: []
 --- !u!114 &5553992836488130771
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -989,6 +990,8 @@ MonoBehaviour:
   layerMask:
     serializedVersion: 2
     m_Bits: 275
+  Passenger: {fileID: 0}
+  CurrentStage: 0
 --- !u!1 &7283603110788178048
 GameObject:
   m_ObjectHideFlags: 0

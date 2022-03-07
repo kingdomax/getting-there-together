@@ -705,12 +705,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0f90b4178c1979a4fa8450b0c45634a3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  setNameTagToNickname: 1
+  spawnPosition: {x: 70, y: 23.5, z: 39}
+  spawnRotation: {x: 0, y: 0, z: 0}
+  color: 2
+  tags: []
   viewingSetup: {fileID: 7582737499071975832, guid: 797a24f1d35bc1a468f9f47bcc0d41ff,
     type: 3}
-  setNameTagToNickname: 1
-  color: 2
-  spawnPosition: {x: 70, y: 23.5, z: 39}
-  tags: []
 --- !u!114 &5481984693841934937
 MonoBehaviour:
   m_ObjectHideFlags: 0

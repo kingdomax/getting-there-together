@@ -1,3 +1,4 @@
+using System;
 using Photon.Pun;
 using UnityEngine;
 using UnityEngine.XR;
@@ -10,12 +11,13 @@ namespace Vrsys
         // SETTING
         public LayerMask layerMask;
 
-        // STAGE
-        private bool _oneTimeSetup;
-        enum NavigationStage { Forming, Performing, Adjourning }
-        private NavigationStage _currentStage;
+        // EXPOSED MEMBERS
+        public GameObject Passenger;
+        public enum NavigationStage { Forming, Performing, Adjourning }
+        public NavigationStage CurrentStage; // todo-moch: might need to change to game state
 
         // GENERAL MEMBERS
+        private bool _oneTimeSetup;
         private ViewingSetupHMDAnatomy _viewingSetupHmd;
         private GameObject _xrRig;
         private GameObject _camera;
@@ -26,7 +28,7 @@ namespace Vrsys
         // FORMING MEMBERS
         private GameObject _formingIntersectionPoint;
         private GameObject _formingPassengerPreview;
-
+        
         void Start()
         {
             if (!photonView.IsMine) { Destroy(this); } // This script should only compute for the local user
@@ -36,10 +38,14 @@ namespace Vrsys
         {
             if (!AreDevicesReady()) { return; }
 
+            if (CurrentStage == NavigationStage.Adjourning) { Forming(); }
+            if (CurrentStage == NavigationStage.Forming || CurrentStage == NavigationStage.Performing) { Performing(); }
+            if (CurrentStage == NavigationStage.Forming || CurrentStage == NavigationStage.Performing) { Adjourning(); }
+
+            ResetPos();
             InitializeBot();
-            Forming();
-            Performing();
-            Adjourning();
+
+            Test(); // todo-moch: need to delete
         }
 
         private bool AreDevicesReady()
@@ -54,7 +60,7 @@ namespace Vrsys
             if (_viewingSetupHmd != null && !_oneTimeSetup)
             {
                 _oneTimeSetup = true;
-                _currentStage = NavigationStage.Adjourning;
+                CurrentStage = NavigationStage.Adjourning;
 
                 _xrRig = _viewingSetupHmd.childAttachmentRoot;
                 _camera = _viewingSetupHmd.mainCamera;
@@ -74,11 +80,6 @@ namespace Vrsys
             }
 
             return _viewingSetupHmd != null;
-        }
-
-        private void InitializeBot()
-        {
-
         }
 
         private void Forming()
@@ -120,21 +121,33 @@ namespace Vrsys
                 var lookRotation = Quaternion.LookRotation(_formingLine.GetPosition(1) - _formingPassengerPreview.transform.position);
                 _formingPassengerPreview.transform.rotation = Quaternion.Euler(0, lookRotation.eulerAngles.y, 0);
 
-                // teleport passenger & all indicator disappear
+                // all indicator disappear & teleport passenger and set _currentStage
                 if (gripper < 0.00001f)
                 {
                     _formingPassengerPreview.SetActive(false);
-                    
-                    var finalRotation = _formingPassengerPreview.transform.rotation * (Quaternion.Inverse(_camera.transform.rotation) * _xrRig.transform.rotation);
-                    transform.rotation = Quaternion.Euler(0, finalRotation.eulerAngles.y, 0);
-                    _xrRig.transform.position = new Vector3(
-                        _formingPassengerPreview.transform.position.x,
-                        _formingPassengerPreview.transform.position.y + 0.5f,
-                        _formingPassengerPreview.transform.position.z);
+
+                    Passenger = SceneDirector.GetAnotherUser(gameObject);
+                    if (Passenger != null)
+                    {
+                        var passengerHeadRotation = Passenger.GetComponent<AvatarAnatomy>().head.transform.rotation; // read from object's avatar anatomy
+                        var rotationOffset = _formingPassengerPreview.transform.rotation * (Quaternion.Inverse(passengerHeadRotation) * Passenger.transform.rotation);
+                        var rotation = Quaternion.Euler(0, rotationOffset.eulerAngles.y, 0);
+                        var position = new Vector3(
+                            _formingPassengerPreview.transform.position.x,
+                            _formingPassengerPreview.transform.position.y + 0.5f,
+                            _formingPassengerPreview.transform.position.z);
+                        // _xrRig.transform.position = position;
+                        // _xrRig.transform.rotation = Quaternion.Euler(0, rotation.eulerAngles.y, 0);
+                        Debug.Log($"object caller: {gameObject.name}");
+                        Passenger.GetComponent<NetworkUser>().Teleport(position, rotation); // write to object's view anatomy
+
+                        CurrentStage = NavigationStage.Forming;
+                    }
+
+                    Debug.Log("No passenger in scene to do forming");
                 }
             }
         }
-
 
         private void Performing()
         {
@@ -143,7 +156,43 @@ namespace Vrsys
 
         private void Adjourning()
         {
+            _controller.inputDevice.TryGetFeatureValue(CommonUsages.primary2DAxisClick, out bool secondaryButton);
+            if (secondaryButton) // todo-moch: Beware, only bool check is leading to multiple execution inside if statement
+            {
+                Passenger = null;
+                CurrentStage = NavigationStage.Adjourning;
+            }
+        }
 
+        private void InitializeBot()
+        {
+
+        }
+
+        private void ResetPos()
+        {
+            if (Input.GetKeyDown(KeyCode.F5))
+            {
+                _xrRig.transform.localPosition = Vector3.zero;
+                _xrRig.transform.localRotation = Quaternion.identity;
+            }
+        }
+
+        private void Test()
+        {
+            Action ForceTeleport = () =>
+            {
+                var position = new Vector3(_xrRig.transform.position.x, _xrRig.transform.position.y, _xrRig.transform.position.z);
+                var rotation = _xrRig.transform.rotation;
+                SceneDirector.GetAnotherUser(gameObject).GetComponent<NetworkUser>().Teleport(position, rotation);
+            };
+
+
+
+            if (Input.GetKeyDown(KeyCode.F1))
+            {
+                ForceTeleport();
+            }
         }
     }
 }

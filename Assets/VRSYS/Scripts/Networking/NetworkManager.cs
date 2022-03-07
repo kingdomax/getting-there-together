@@ -4,6 +4,7 @@ using UnityEngine;
 
 namespace Vrsys
 {
+    // Photon instantiate: use Prefab --> NetworkUser.cs.Awake()
     public class NetworkManager : MonoBehaviourPunCallbacks
     {
         private string logTag;

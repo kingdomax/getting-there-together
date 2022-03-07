@@ -5,7 +5,6 @@ namespace Vrsys
 {
     public class Utility
     {
-
         public static GameObject FindRecursiveInScene(Scene scene, string name)
         {
             var sceneRoots = scene.GetRootGameObjects();

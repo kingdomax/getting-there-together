@@ -1,63 +1,47 @@
-using UnityEngine;
-using Photon.Pun;
-using Photon.Realtime;
 using TMPro;
+using Photon.Pun;
+using UnityEngine;
+using Photon.Realtime;
 using System.Collections.Generic;
 
 namespace Vrsys
 {
+    // Handles ViewingSetup instantiation and global properties of the local user.
     [RequireComponent(typeof(AvatarAnatomy))]
     public class NetworkUser : MonoBehaviourPunCallbacks, IPunObservable
     {
-        public static GameObject localGameObject;
-        public static GameObject localHead;
-        public static NetworkUser localNetworkUser
-        {
-            get
-            {
-                return localGameObject.GetComponent<NetworkUser>();
-            }
-        }
-
-        [Tooltip("The viewing prefab to instantiate for the local user. For maximum support, this should contain a ViewingSetupAnatomy script at root level, which supports the AvatarAnatomy attached to gameObject.")]
-        [SerializeField]
-        private GameObject viewingSetup;
-
+        // SETTING
         [Tooltip("If true, a TMP_Text element will be searched in child components and a text will be set equal to photonView.Owner.NickName. Note, this feature may create unwanted results if the GameObject, which contains this script, holds any other TMP_Text fields but the actual NameTag.")]
         public bool setNameTagToNickname = true;
-
-        public enum PrefabColor
-        {
-            Red,
-            Blue,
-            Default
-        }
-        public PrefabColor color = PrefabColor.Default;
-
         [Tooltip("The spawn position of this NetworkUser")]
         public Vector3 spawnPosition = Vector3.zero;
-
+        public Vector3 spawnRotation = Vector3.zero;
+        public enum PrefabColor { Red, Blue, Default }
+        public PrefabColor color = PrefabColor.Default;
         public List<string> tags = new List<string>();
 
-        [HideInInspector]
-        public AvatarAnatomy avatarAnatomy { get; private set; }
+        // EXPOSED MEMBERS
+        public static GameObject localGameObject; // this user
+        public static GameObject localHead;
+        public static NetworkUser localNetworkUser { get { return localGameObject.GetComponent<NetworkUser>(); } }
 
+        // MEMBERS
+        [SerializeField]
+        [Tooltip("The viewing prefab to instantiate for the local user. For maximum support, this should contain a ViewingSetupAnatomy script at root level, which supports the AvatarAnatomy attached to gameObject.")]
+        private GameObject viewingSetup; // Desktop or HMD view as preffab
         [HideInInspector]
-        public ViewingSetupAnatomy viewingSetupAnatomy { get; private set; }
+        public AvatarAnatomy avatarAnatomy { get; private set; } // easy access to model object
+        [HideInInspector]
+        public ViewingSetupAnatomy viewingSetupAnatomy { get; private set; } // easy access to view object (use this for narvigation connected with model object)
 
+        // STATE
         private Vector3 receivedScale = Vector3.one;
-
-        private bool hasPendingScaleUpdate
-        {
-            get
-            {
-                return (transform.localScale - receivedScale).magnitude > 0.001;
-            }
-        }
+        private bool hasPendingScaleUpdate { get { return (transform.localScale - receivedScale).magnitude > 0.001; } }
 
         private void Awake()
         {
             avatarAnatomy = GetComponent<AvatarAnatomy>();
+
             if (photonView.IsMine)
             {
                 NetworkUser.localGameObject = gameObject;
@@ -70,22 +54,40 @@ namespace Vrsys
 
             if (PhotonNetwork.IsConnected)
             {
-                gameObject.name = photonView.Owner.NickName + (photonView.IsMine ? " [Local User]" : " [External User]");
                 var nameTagTextComponent = avatarAnatomy.nameTag.GetComponentInChildren<TMP_Text>();
                 if (nameTagTextComponent && setNameTagToNickname)
                 {
                     nameTagTextComponent.text = photonView.Owner.NickName;
                 }
+                gameObject.name = photonView.Owner.NickName + (photonView.IsMine ? " [Local User]" : " [External User]");
+                SceneDirector.AppendUserToList(gameObject);
+            }
+        }
+
+        private void Update()
+        {
+            if (!photonView.IsMine && hasPendingScaleUpdate)
+            {
+                transform.localScale = Vector3.Lerp(transform.localScale, receivedScale, Time.deltaTime);
+            }
+        }
+
+        public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
+        {
+            if (stream.IsWriting && photonView.IsMine)
+            {
+                stream.SendNext(viewingSetup.transform.lossyScale);
+            }
+            else if (stream.IsReading)
+            {
+                receivedScale = (Vector3)stream.ReceiveNext();
             }
         }
 
         private void InitializeViewing()
         {
             //Check whcih platform is running
-            if (viewingSetup == null)
-            {
-                throw new System.ArgumentNullException("Viewing Setup must not be null for local NetworkUser.");
-            }
+            if (viewingSetup == null) { throw new System.ArgumentNullException("Viewing Setup must not be null for local NetworkUser."); }
 
             viewingSetup = Instantiate(viewingSetup);
             viewingSetup.transform.position = spawnPosition;
@@ -111,6 +113,19 @@ namespace Vrsys
             photonView.RPC("SetColor", RpcTarget.AllBuffered, new object[] { new Vector3(clr.r, clr.g, clr.b) });
         }
 
+        public void Teleport(Vector3 position, Quaternion rotation)
+        {
+            Debug.Log($"object receiver: {gameObject.name}");
+            photonView.RPC("Teleport", RpcTarget.All, position, rotation);
+        }
+
+        [PunRPC]
+        public void Teleport(Vector3 position, Quaternion rotation, PhotonMessageInfo info)
+        {
+            Debug.Log($"rpc is called from machine: {info.Sender}");
+            if (photonView.IsMine) { viewingSetupAnatomy.Teleport(position, rotation); }
+        }
+
         [PunRPC]
         void SetColor(Vector3 color)
         {
@@ -125,26 +140,6 @@ namespace Vrsys
             if (nameTagTextComponent && setNameTagToNickname)
             {
                 nameTagTextComponent.text = name;
-            }
-        }
-
-        private void Update()
-        {
-            if (!photonView.IsMine && hasPendingScaleUpdate)
-            {
-                transform.localScale = Vector3.Lerp(transform.localScale, receivedScale, Time.deltaTime);
-            }
-        }
-
-        public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
-        {
-            if (stream.IsWriting && photonView.IsMine)
-            {
-                stream.SendNext(viewingSetup.transform.lossyScale);
-            }
-            else if (stream.IsReading)
-            {
-                receivedScale = (Vector3)stream.ReceiveNext();
             }
         }
 
