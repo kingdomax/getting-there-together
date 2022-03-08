@@ -6,4 +6,11 @@
         Performing,
         Adjourning
     }
+
+    public enum NavigationRole
+    {
+        Navigator,
+        Passenger,
+        Observer
+    }
 }

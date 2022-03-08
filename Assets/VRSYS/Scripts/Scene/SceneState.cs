@@ -1,14 +1,18 @@
+using Photon.Pun;
 using UnityEngine;
 using System.Collections.Generic;
 
 namespace Vrsys
 {
+    // No logic
     public class SceneState : MonoBehaviour
     {
         private List<GameObject> AllUsers;
         private NavigationStage CurrentStage;
         private GameObject Navigator;
         private GameObject Passenger;
+
+        private string Message = "initial msg";// todo-moch: to be remove
 
         void Start()
         {
@@ -26,25 +30,32 @@ namespace Vrsys
         public NavigationStage GetNavigationStage() => CurrentStage;
         public GameObject GetNavigator() => Navigator;
         public GameObject GetPassenger() => Passenger;
-
-        public void SetFormingStage(GameObject self, GameObject passenger)
+        public NavigationRole GetNavigationRole(GameObject obj)
         {
-            if (Navigator == null && Passenger == null) 
-            {
-                CurrentStage = NavigationStage.Forming;
-                Navigator = self;
-                Passenger = passenger;
-            }
+            if (Navigator?.name == obj.name) { return NavigationRole.Navigator; }
+            if (Passenger?.name == obj.name) { return NavigationRole.Passenger; }
+            return NavigationRole.Observer;
+        }
+
+        public void SetFormingStage(GameObject navigator, GameObject passenger)
+        {
+            CurrentStage = NavigationStage.Forming;
+            Navigator = navigator;
+            Passenger = passenger;
         }
         
-        public void SetAdjourningStage(GameObject self)
+        public void SetAdjourningStage()
         {
-            if (Navigator?.name == self.name) 
-            {
-                CurrentStage = NavigationStage.Adjourning;
-                Navigator = null;
-                Passenger = null;
-            }
+            CurrentStage = NavigationStage.Adjourning;
+            Navigator = null;
+            Passenger = null;
         }
+
+
+
+
+        // todo-moch: to be removed
+        public string GetLocalMessage() => Message;
+        public void UpdateMessage(string overrideMsg) => Message = overrideMsg;
     }
 }

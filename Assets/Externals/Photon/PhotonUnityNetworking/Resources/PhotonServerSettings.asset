@@ -60,6 +60,8 @@ MonoBehaviour:
   - Fire
   - RespawnSpaceship
   - Teleport
+  - SetFormingStage
+  - UpdateMessageToAllClient
   DisableAutoOpenWizard: 1
   ShowSettings: 1
   DevRegionSetOnce: 1

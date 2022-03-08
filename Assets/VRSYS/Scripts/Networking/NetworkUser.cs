@@ -74,9 +74,10 @@ namespace Vrsys
             }
         }
 
-        private void OnDestroy()
+        public override void OnDisable()
         {
             sceneState.RomoveUserFromList(gameObject);
+            base.OnDisable();
         }
 
         public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
@@ -134,6 +135,19 @@ namespace Vrsys
         }
 
         [PunRPC]
+        public void SetFormingStage(GameObject navigator, GameObject passenger, PhotonMessageInfo info)
+        {
+            sceneState.SetFormingStage(navigator, passenger);
+        }
+
+        [PunRPC]
+        public void UpdateMessageToAllClient(PhotonMessageInfo info) // todo-moch: to be removed
+        {
+            var msg = $"{System.DateTime.Now} (override msg by: {info.Sender})";
+            sceneState.UpdateMessage(msg);
+        }
+
+        [PunRPC]
         void SetColor(Vector3 color)
         {
             avatarAnatomy.SetColor(new Color(color.x, color.y, color.z));
@@ -150,7 +164,7 @@ namespace Vrsys
             }
         }
 
-        public Color ParseColorFromPrefs(PrefabColor col)
+        private Color ParseColorFromPrefs(PrefabColor col)
         {
             switch (col)
             {
@@ -161,7 +175,7 @@ namespace Vrsys
             return new Color(.6f, .6f, .6f);
         }
 
-        public static Color ParseColorFromPrefs(Color fallback)
+        private static Color ParseColorFromPrefs(Color fallback)
         {
             Color color;
             switch (PlayerPrefs.GetString("UserColor"))

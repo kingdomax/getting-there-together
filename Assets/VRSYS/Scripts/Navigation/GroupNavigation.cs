@@ -138,7 +138,7 @@ namespace Vrsys
                         Debug.Log($"object caller: {gameObject.name}");
                         passenger.GetComponent<NetworkUser>().Teleport(position, rotation); // write to object's view anatomy
 
-                        _sceneState.SetFormingStage(gameObject, passenger);
+                        photonView.RPC("SetFormingStage", RpcTarget.All, gameObject, passenger);
                     }
 
                     Debug.Log("No passenger in scene to do forming");
@@ -148,18 +148,33 @@ namespace Vrsys
 
         private void Performing()
         {
-            // ???????????? #b
-            // ????? position of passenger, 4 or 8 direction, how far #b
-            // ability for passenger to cancel #b
-            // teleportation
+            var myRole = _sceneState.GetNavigationRole(gameObject);
+            if (myRole == NavigationRole.Navigator) { Performing_Navigator(); }
+            if (myRole == NavigationRole.Passenger) { Performing_Passenger(); }
+        }
+
+        private void Performing_Navigator()
+        {
+            // 1. Select navigator position #b
+            // 2. Select passenger position, 4 or 8 direction, how far #b
+            // 3. Select passenger rotation
+            // 4. Select gap between passenger and navigator #b
+            // 5. Group Teleportation
+
+            // Circular zone might be photon.instantiate and serialization position ? brcause it will update all the time
+        }
+
+        private void Performing_Passenger()
+        {
+            // 1. Ability for passenger to cancel #b
         }
 
         private void Adjourning()
         {
             _controller.inputDevice.TryGetFeatureValue(CommonUsages.primary2DAxisClick, out bool secondaryButton);
-            if (secondaryButton) // todo-moch: Beware, only bool check is leading to multiple execution inside if statement
+            if (secondaryButton && _sceneState.GetNavigationRole(gameObject) == NavigationRole.Navigator)
             {
-                _sceneState.SetAdjourningStage(gameObject);
+                _sceneState.SetAdjourningStage();
             }
         }
 
@@ -186,11 +201,14 @@ namespace Vrsys
                 _sceneState.GetAnotherUser(gameObject).GetComponent<NetworkUser>().Teleport(position, rotation);
             };
 
-
-
             if (Input.GetKeyDown(KeyCode.F1))
             {
-                ForceTeleport();
+                photonView.RPC("UpdateMessageToAllClient", RpcTarget.All);
+            }
+
+            if (Input.GetKeyDown(KeyCode.F2))
+            {
+                Debug.Log(_sceneState.GetLocalMessage());
             }
         }
     }
