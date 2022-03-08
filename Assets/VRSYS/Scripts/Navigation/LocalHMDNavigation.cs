@@ -17,7 +17,7 @@ namespace Vrsys
 
         ViewingSetupHMDAnatomy _viewingSetupHmd;
         private XRController _controller;
-        private GroupNavigation _groupNavScript;
+        private SceneState _sceneState;
 
         void Start()
         {
@@ -29,7 +29,7 @@ namespace Vrsys
         void Update()
         {
             // Only calculate & apply input if local user fully instantiated
-            if (EnsureViewingSetup() && EnsureController() && EnsureGroupNavScript())
+            if (EnsureViewingSetup() && EnsureController() && EnsureGroupNavStage())
             {
                 MapInput(CalcTranslationInput(), CalcRotationInput());
             }
@@ -54,10 +54,10 @@ namespace Vrsys
             return _controller != null;
         }
 
-        bool EnsureGroupNavScript()
+        bool EnsureGroupNavStage()
         {
-            if (_groupNavScript == null) { _groupNavScript = GetComponent<GroupNavigation>(); }
-            return _groupNavScript.CurrentStage == GroupNavigation.NavigationStage.Adjourning;
+            if (_sceneState == null) { _sceneState = GameObject.Find("Scene Management").GetComponent<SceneState>(); }
+            return _sceneState.GetNavigationStage() == NavigationStage.Adjourning;
         }
 
         private Vector3 CalcTranslationInput()

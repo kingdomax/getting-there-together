@@ -33,6 +33,7 @@ namespace Vrsys
         public AvatarAnatomy avatarAnatomy { get; private set; } // easy access to model object
         [HideInInspector]
         public ViewingSetupAnatomy viewingSetupAnatomy { get; private set; } // easy access to view object (use this for narvigation connected with model object)
+        private SceneState sceneState;
 
         // STATE
         private Vector3 receivedScale = Vector3.one;
@@ -41,6 +42,7 @@ namespace Vrsys
         private void Awake()
         {
             avatarAnatomy = GetComponent<AvatarAnatomy>();
+            sceneState = GameObject.Find("Scene Management").GetComponent<SceneState>();
 
             if (photonView.IsMine)
             {
@@ -60,7 +62,7 @@ namespace Vrsys
                     nameTagTextComponent.text = photonView.Owner.NickName;
                 }
                 gameObject.name = photonView.Owner.NickName + (photonView.IsMine ? " [Local User]" : " [External User]");
-                SceneDirector.AppendUserToList(gameObject);
+                sceneState.AppendUserToList(gameObject);
             }
         }
 
@@ -70,6 +72,11 @@ namespace Vrsys
             {
                 transform.localScale = Vector3.Lerp(transform.localScale, receivedScale, Time.deltaTime);
             }
+        }
+
+        private void OnDestroy()
+        {
+            sceneState.RomoveUserFromList(gameObject);
         }
 
         public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)

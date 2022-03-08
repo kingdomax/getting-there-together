@@ -30,7 +30,6 @@ namespace Vrsys
 
         public override void Teleport(Vector3 position, Quaternion rotation)
         {
-            Debug.Log("Hi! ViewHMDAnatomy");
             childAttachmentRoot.transform.position = position;
             childAttachmentRoot.transform.rotation = rotation;
         }

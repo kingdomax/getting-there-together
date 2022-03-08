@@ -11,13 +11,9 @@ namespace Vrsys
         // SETTING
         public LayerMask layerMask;
 
-        // EXPOSED MEMBERS
-        public GameObject Passenger;
-        public enum NavigationStage { Forming, Performing, Adjourning }
-        public NavigationStage CurrentStage; // todo-moch: might need to change to game state
-
         // GENERAL MEMBERS
         private bool _oneTimeSetup;
+        private SceneState _sceneState;
         private ViewingSetupHMDAnatomy _viewingSetupHmd;
         private GameObject _xrRig;
         private GameObject _camera;
@@ -38,9 +34,10 @@ namespace Vrsys
         {
             if (!AreDevicesReady()) { return; }
 
-            if (CurrentStage == NavigationStage.Adjourning) { Forming(); }
-            if (CurrentStage == NavigationStage.Forming || CurrentStage == NavigationStage.Performing) { Performing(); }
-            if (CurrentStage == NavigationStage.Forming || CurrentStage == NavigationStage.Performing) { Adjourning(); }
+            var currentStage = _sceneState.GetNavigationStage();
+            if (currentStage == NavigationStage.Adjourning) { Forming(); }
+            if (currentStage == NavigationStage.Forming || currentStage == NavigationStage.Performing) { Performing(); }
+            if (currentStage == NavigationStage.Forming || currentStage == NavigationStage.Performing) { Adjourning(); }
 
             ResetPos();
             InitializeBot();
@@ -60,7 +57,7 @@ namespace Vrsys
             if (_viewingSetupHmd != null && !_oneTimeSetup)
             {
                 _oneTimeSetup = true;
-                CurrentStage = NavigationStage.Adjourning;
+                _sceneState = GameObject.Find("Scene Management").GetComponent<SceneState>();
 
                 _xrRig = _viewingSetupHmd.childAttachmentRoot;
                 _camera = _viewingSetupHmd.mainCamera;
@@ -126,11 +123,11 @@ namespace Vrsys
                 {
                     _formingPassengerPreview.SetActive(false);
 
-                    Passenger = SceneDirector.GetAnotherUser(gameObject);
-                    if (Passenger != null)
+                    var passenger = _sceneState.GetAnotherUser(gameObject);
+                    if (passenger != null)
                     {
-                        var passengerHeadRotation = Passenger.GetComponent<AvatarAnatomy>().head.transform.rotation; // read from object's avatar anatomy
-                        var rotationOffset = _formingPassengerPreview.transform.rotation * (Quaternion.Inverse(passengerHeadRotation) * Passenger.transform.rotation);
+                        var passengerHeadRotation = passenger.GetComponent<AvatarAnatomy>().head.transform.rotation; // read from object's avatar anatomy
+                        var rotationOffset = _formingPassengerPreview.transform.rotation * (Quaternion.Inverse(passengerHeadRotation) * passenger.transform.rotation);
                         var rotation = Quaternion.Euler(0, rotationOffset.eulerAngles.y, 0);
                         var position = new Vector3(
                             _formingPassengerPreview.transform.position.x,
@@ -139,9 +136,9 @@ namespace Vrsys
                         // _xrRig.transform.position = position;
                         // _xrRig.transform.rotation = Quaternion.Euler(0, rotation.eulerAngles.y, 0);
                         Debug.Log($"object caller: {gameObject.name}");
-                        Passenger.GetComponent<NetworkUser>().Teleport(position, rotation); // write to object's view anatomy
+                        passenger.GetComponent<NetworkUser>().Teleport(position, rotation); // write to object's view anatomy
 
-                        CurrentStage = NavigationStage.Forming;
+                        _sceneState.SetFormingStage(gameObject, passenger);
                     }
 
                     Debug.Log("No passenger in scene to do forming");
@@ -151,7 +148,10 @@ namespace Vrsys
 
         private void Performing()
         {
-
+            // ???????????? #b
+            // ????? position of passenger, 4 or 8 direction, how far #b
+            // ability for passenger to cancel #b
+            // teleportation
         }
 
         private void Adjourning()
@@ -159,8 +159,7 @@ namespace Vrsys
             _controller.inputDevice.TryGetFeatureValue(CommonUsages.primary2DAxisClick, out bool secondaryButton);
             if (secondaryButton) // todo-moch: Beware, only bool check is leading to multiple execution inside if statement
             {
-                Passenger = null;
-                CurrentStage = NavigationStage.Adjourning;
+                _sceneState.SetAdjourningStage(gameObject);
             }
         }
 
@@ -184,7 +183,7 @@ namespace Vrsys
             {
                 var position = new Vector3(_xrRig.transform.position.x, _xrRig.transform.position.y, _xrRig.transform.position.z);
                 var rotation = _xrRig.transform.rotation;
-                SceneDirector.GetAnotherUser(gameObject).GetComponent<NetworkUser>().Teleport(position, rotation);
+                _sceneState.GetAnotherUser(gameObject).GetComponent<NetworkUser>().Teleport(position, rotation);
             };
 
 

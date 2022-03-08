@@ -28,8 +28,7 @@ namespace Vrsys
         // To accommodate both desktop and HMD user
         public virtual void Teleport(Vector3 position, Quaternion rotation)
         {
-            Debug.Log("Hi! ViewDesktopAnatomy");
-            mainCamera.transform.position = position;
+            mainCamera.transform.position = new Vector3(position.x, position.y+0.5f, position.z);
             mainCamera.transform.rotation = rotation;
         }
     }
