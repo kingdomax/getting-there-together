@@ -155,23 +155,29 @@ namespace Vrsys
 
         private void Performing_Navigator()
         {
-            // 1. Select navigator position #b
-            // 2. Select passenger position, 4 or 8 direction, how far #b
-            // 3. Select passenger rotation
-            // 4. Select gap between passenger and navigator #b
-            // 5. Group Teleportation
+            // 0. build circular zone prefab #wednesday
+            // > connect linerenderer with Navigator Jumping Point, use same color as user
+            // > connect linerenderer with Passenger Jumping Point, use same color as user
+            // > use joystick to control Passenger Jumping Point with proper speed, script attch to passenger ball
+            // > display point when collide with direction cube --> change color of direction cube
+            // > not render point and line of passenger when outside direction cube (try use more scaling speed)
 
-            // Circular zone might be photon.instantiate and serialization position ? brcause it will update all the time
+
+            // 1. Select navigator position (primary button)
+            // 2. Select passenger position + gap, 4 or 8 direction, how far (joystick)
+            // 3. Group Teleportation (primary button)
+
+            // Circular zone might be photon.instantiate(prefab) and serialization position ? brcause it will update all the time
         }
 
         private void Performing_Passenger()
         {
-            // 1. Ability for passenger to cancel #b
+            // 1. Ability for passenger to cancel (primary button)
         }
 
         private void Adjourning()
         {
-            _controller.inputDevice.TryGetFeatureValue(CommonUsages.primary2DAxisClick, out bool secondaryButton);
+            _controller.inputDevice.TryGetFeatureValue(CommonUsages.secondaryButton, out bool secondaryButton);
             if (secondaryButton && _sceneState.GetNavigationRole(gameObject) == NavigationRole.Navigator)
             {
                 _sceneState.SetAdjourningStage();

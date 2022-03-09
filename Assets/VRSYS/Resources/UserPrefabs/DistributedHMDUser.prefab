@@ -990,8 +990,6 @@ MonoBehaviour:
   layerMask:
     serializedVersion: 2
     m_Bits: 275
-  Passenger: {fileID: 0}
-  CurrentStage: 0
 --- !u!1 &7283603110788178048
 GameObject:
   m_ObjectHideFlags: 0
