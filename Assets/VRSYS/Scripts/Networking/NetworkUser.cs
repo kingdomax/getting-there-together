@@ -39,30 +39,15 @@ namespace Vrsys
         private Vector3 receivedScale = Vector3.one;
         private bool hasPendingScaleUpdate { get { return (transform.localScale - receivedScale).magnitude > 0.001; } }
 
-        private void Awake()
+        public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
         {
-            avatarAnatomy = GetComponent<AvatarAnatomy>();
-            sceneState = GameObject.Find("Scene Management").GetComponent<SceneState>();
-
-            if (photonView.IsMine)
+            if (stream.IsWriting && photonView.IsMine)
             {
-                NetworkUser.localGameObject = gameObject;
-                NetworkUser.localHead = avatarAnatomy.head;
-                
-                InitializeViewing();
-                InitializeAvatar();
-                //HideHandsInFavorOfControllers();
+                stream.SendNext(viewingSetup.transform.lossyScale);
             }
-
-            if (PhotonNetwork.IsConnected)
+            else if (stream.IsReading)
             {
-                var nameTagTextComponent = avatarAnatomy.nameTag.GetComponentInChildren<TMP_Text>();
-                if (nameTagTextComponent && setNameTagToNickname)
-                {
-                    nameTagTextComponent.text = photonView.Owner.NickName;
-                }
-                gameObject.name = photonView.Owner.NickName + (photonView.IsMine ? " [Local User]" : " [External User]");
-                sceneState.AppendUserToList(gameObject);
+                receivedScale = (Vector3)stream.ReceiveNext();
             }
         }
 
@@ -76,19 +61,35 @@ namespace Vrsys
 
         public override void OnDisable()
         {
-            sceneState.RomoveUserFromList(gameObject);
+            sceneState.RomoveUserFromList(photonView.ViewID);
             base.OnDisable();
         }
 
-        public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
+        private void Awake()
         {
-            if (stream.IsWriting && photonView.IsMine)
+            avatarAnatomy = GetComponent<AvatarAnatomy>();
+            sceneState = GameObject.Find("Scene Management").GetComponent<SceneState>();
+
+            // Only owner user
+            if (photonView.IsMine)
             {
-                stream.SendNext(viewingSetup.transform.lossyScale);
+                NetworkUser.localGameObject = gameObject;
+                NetworkUser.localHead = avatarAnatomy.head;
+
+                InitializeViewing();
+                InitializeAvatar();
             }
-            else if (stream.IsReading)
+
+            // All user
+            if (PhotonNetwork.IsConnected)
             {
-                receivedScale = (Vector3)stream.ReceiveNext();
+                var nameTagTextComponent = avatarAnatomy.nameTag.GetComponentInChildren<TMP_Text>();
+                if (nameTagTextComponent && setNameTagToNickname)
+                {
+                    nameTagTextComponent.text = photonView.Owner.NickName;
+                }
+                gameObject.name = photonView.Owner.NickName + (photonView.IsMine ? " [Local User]" : " [External User]");
+                sceneState.AppendUserToList(photonView.ViewID);
             }
         }
 
@@ -99,13 +100,14 @@ namespace Vrsys
 
             viewingSetup = Instantiate(viewingSetup);
             viewingSetup.transform.position = spawnPosition;
-            viewingSetup.transform.SetParent(gameObject.transform, false);
+            viewingSetup.transform.SetParent(gameObject.transform, false); // Avatar/ViewSetup
             viewingSetup.name = "Viewing Setup";
 
             viewingSetupAnatomy = viewingSetup.GetComponentInChildren<ViewingSetupAnatomy>();
             if (viewingSetupAnatomy)
             {
-                avatarAnatomy.ConnectFrom(viewingSetupAnatomy);
+                // Make avatar's head, handleft, handright to be child of viewAnatomy's heaad, handleft, handright
+                avatarAnatomy.ConnectFrom(viewingSetupAnatomy); // Avatar/ViewSetup/viewhead --> avatarhead/viewhand --> avatarhand
             }
             else
             {
@@ -121,23 +123,30 @@ namespace Vrsys
             photonView.RPC("SetColor", RpcTarget.AllBuffered, new object[] { new Vector3(clr.r, clr.g, clr.b) });
         }
 
-        public void Teleport(Vector3 position, Quaternion rotation)
+        public void Teleport(Vector3 position, Quaternion rotation, bool withRotation)
         {
-            Debug.Log($"object receiver: {gameObject.name}");
-            photonView.RPC("Teleport", RpcTarget.All, position, rotation);
+            photonView.RPC("Teleport", RpcTarget.All, position, rotation, withRotation);
         }
 
         [PunRPC]
-        public void Teleport(Vector3 position, Quaternion rotation, PhotonMessageInfo info)
+        public void Teleport(Vector3 position, Quaternion rotation, bool withRotation, PhotonMessageInfo info)
         {
-            Debug.Log($"rpc is called from machine: {info.Sender}");
-            if (photonView.IsMine) { viewingSetupAnatomy.Teleport(position, rotation); }
+            if (photonView.IsMine) // Let owner teleport his viewAvatar and other user just receive 
+            {
+                viewingSetupAnatomy.Teleport(position, rotation, withRotation);
+            }
         }
 
         [PunRPC]
-        public void SetFormingStage(GameObject navigator, GameObject passenger, PhotonMessageInfo info)
+        public void SetFormingStage(int navigator, int passenger, PhotonMessageInfo info)
         {
             sceneState.SetFormingStage(navigator, passenger);
+        }
+
+        [PunRPC]
+        public void SetAdjourningStage(PhotonMessageInfo info)
+        {
+            sceneState.SetAdjourningStage();
         }
 
         [PunRPC]

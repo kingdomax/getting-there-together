@@ -26,10 +26,10 @@ namespace Vrsys
         }
 
         // To accommodate both desktop and HMD user
-        public virtual void Teleport(Vector3 position, Quaternion rotation)
+        public virtual void Teleport(Vector3 position, Quaternion rotation, bool withRotation)
         {
             mainCamera.transform.position = new Vector3(position.x, position.y+0.5f, position.z);
-            mainCamera.transform.rotation = rotation;
+            mainCamera.transform.rotation = withRotation ? rotation : mainCamera.transform.rotation;
         }
     }
 }

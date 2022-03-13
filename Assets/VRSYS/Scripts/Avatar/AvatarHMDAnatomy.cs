@@ -2,6 +2,7 @@ using UnityEngine;
 
 namespace Vrsys 
 {
+    // Avatar / Head --> Body, HandLeft, HnadRight
     public class AvatarHMDAnatomy : AvatarAnatomy
     {
         public GameObject body;

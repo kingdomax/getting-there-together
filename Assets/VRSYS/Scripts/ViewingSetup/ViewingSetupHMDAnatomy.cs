@@ -3,6 +3,7 @@ using UnityEngine;
 namespace Vrsys
 {
     // Provide easy access to its own children component (HMD view)
+    // ViewingSetup / Camera Offset / Main Camera,Left Controller,Right Controller
     public class ViewingSetupHMDAnatomy : ViewingSetupAnatomy
     {
         public GameObject leftController;
@@ -28,10 +29,11 @@ namespace Vrsys
             }
         }
 
-        public override void Teleport(Vector3 position, Quaternion rotation)
+        public override void Teleport(Vector3 position, Quaternion rotation, bool withRotation)
         {
-            childAttachmentRoot.transform.position = position;
-            childAttachmentRoot.transform.rotation = rotation;
+            var bufferHeight = 0.5f;
+            childAttachmentRoot.transform.position = new Vector3(position.x, position.y+bufferHeight, position.z);
+            childAttachmentRoot.transform.rotation = withRotation ? rotation : childAttachmentRoot.transform.rotation;
         }
     }
 }

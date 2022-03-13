@@ -58,6 +58,7 @@ namespace Vrsys
         {
             if (_sceneState == null) { _sceneState = GameObject.Find("Scene Management").GetComponent<SceneState>(); }
             return _sceneState.GetNavigationStage() == NavigationStage.Adjourning;
+            // return true;
         }
 
         private Vector3 CalcTranslationInput()
