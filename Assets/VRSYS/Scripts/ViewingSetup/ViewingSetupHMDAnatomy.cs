@@ -33,7 +33,7 @@ namespace Vrsys
         {
             var bufferHeight = 0.5f;
             transform.position = new Vector3(position.x, position.y+bufferHeight, position.z);
-            transform.rotation = withRotation ? rotation : childAttachmentRoot.transform.rotation;
+            transform.rotation = withRotation ? rotation : transform.rotation;
         }
     }
 }

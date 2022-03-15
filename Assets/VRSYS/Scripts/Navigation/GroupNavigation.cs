@@ -139,10 +139,15 @@ namespace Vrsys
                     if (_passenger != null)
                     {
                         photonView.RPC("SetFormingStage", RpcTarget.All, photonView.ViewID, _passengerId);
-                        var passengerHeadRotation = _passenger.GetComponent<AvatarAnatomy>().head.transform.rotation; // read from object's avatar anatomy
-                        var rotationOffset = _formingPassengerPreview.transform.rotation * (Quaternion.Inverse(passengerHeadRotation) * _passenger.transform.rotation);
-                        var rotation = Quaternion.Euler(0, rotationOffset.eulerAngles.y, 0);
-                        _passenger.GetComponent<NetworkUser>().Teleport(_formingPassengerPreview.transform.position, rotation, true); // write to object's view anatomy
+
+                        //var passengerHeadRotation = _passenger.GetComponent<AvatarHMDAnatomy>().head.transform.rotation; // read from object's avatar anatomy
+                        //var rotationOffset = _formingPassengerPreview.transform.rotation * (Quaternion.Inverse(passengerHeadRotation) * _passenger.transform.rotation);
+                        //var rotation = Quaternion.Euler(0, rotationOffset.eulerAngles.y, 0);
+                        // _passenger.GetComponent<NetworkUser>().Teleport(_formingPassengerPreview.transform.position, rotation, true); // write to object's view anatomy
+                        _passenger.GetComponent<NetworkUser>().Teleport(
+                            _formingPassengerPreview.transform.position,
+                            _formingPassengerPreview.transform.rotation,
+                            true);
 
                         // prepare next stage
                         _lineRenderer.enabled = true;
@@ -214,8 +219,8 @@ namespace Vrsys
                     photonView.RPC("SetFormingStage", RpcTarget.All, photonView.ViewID, _passengerId);
 
                     photonView.RPC("AnnouceMessage", RpcTarget.All, "[PERFORMING] group jumping");
-                    _viewingSetupHmd.Teleport(_navigatorJumpingPoint.transform.position, Quaternion.identity, false);
-                    _passenger.GetComponent<NetworkUser>().Teleport(_passengerJumpingPoint.transform.position, Quaternion.identity, false);
+                    _viewingSetupHmd.Teleport(_navigatorJumpingPoint.transform.position, _circularZone.transform.rotation, true);
+                    _passenger.GetComponent<NetworkUser>().Teleport(_passengerJumpingPoint.transform.position, _circularZone.transform.rotation, true);
 
                     photonView.RPC("TogglePassengerPoint", RpcTarget.All, false);
                     _passenger.GetComponent<NetworkUser>().ToggleLineRenderer(false);
