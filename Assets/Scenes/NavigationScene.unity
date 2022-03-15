@@ -17221,7 +17221,7 @@ MonoBehaviour:
   networkSerializationRate: 15
   maxUsers: 10
   userName: TESTER
-  userColor: 0
+  userColor: 1
   selectedDeviceType: 1
   supportedUserDevices:
   - device: 1

@@ -26,12 +26,20 @@ namespace Vrsys
                 Destroy(this);
         }
 
+        void Awake()
+        {
+            _sceneState = GameObject.Find("Scene Management").GetComponent<SceneState>();
+        }
+
         void Update()
         {
-            // Only calculate & apply input if local user fully instantiated
-            if (EnsureViewingSetup() && EnsureController() && EnsureGroupNavStage())
+            if (EnsureViewingSetup() && EnsureController())
             {
-                MapInput(CalcTranslationInput(), CalcRotationInput());
+                var stage = _sceneState.GetNavigationStage();
+                var role = _sceneState.GetNavigationRole(photonView.ViewID);
+
+                if (stage == NavigationStage.Adjourning) { CalcTranslationInput(); }
+                if (stage != NavigationStage.Performing || role != NavigationRole.Navigator) { CalcRotationInput(); }
             }
         }
 
@@ -54,34 +62,21 @@ namespace Vrsys
             return _controller != null;
         }
 
-        bool EnsureGroupNavStage()
+        private void CalcTranslationInput()
         {
-            if (_sceneState == null) { _sceneState = GameObject.Find("Scene Management").GetComponent<SceneState>(); }
-            return _sceneState.GetNavigationStage() == NavigationStage.Adjourning;
-            // return true;
-        }
-
-        private Vector3 CalcTranslationInput()
-        {
-            float trigger;
-            _controller.inputDevice.TryGetFeatureValue(CommonUsages.trigger, out trigger);
-            trigger = trigger > 0.1 ? trigger : 0.0f;
+            _controller.inputDevice.TryGetFeatureValue(CommonUsages.trigger, out float trigger);
+            
             var dir = _viewingSetupHmd.rightController.transform.forward;
             dir.y = 0;
-            return dir.normalized * trigger * translationVelocity * Time.deltaTime;
+            trigger = trigger > 0.1 ? trigger : 0.0f;
+
+            _viewingSetupHmd.transform.position += (dir.normalized * trigger * translationVelocity * Time.deltaTime);
         }
 
-        private Vector3 CalcRotationInput()
+        private void CalcRotationInput()
         {
-            Vector2 joystick;
-            _controller.inputDevice.TryGetFeatureValue(CommonUsages.primary2DAxis, out joystick);
-            return new Vector3(0, joystick.x * 0.25f * rotationVelocity, 0);
-        }
-
-        private void MapInput(Vector3 translationInput, Vector3 rotationInput) 
-        {
-            _viewingSetupHmd.transform.position += translationInput;
-            _viewingSetupHmd.transform.rotation *= Quaternion.Euler(rotationInput);
+            _controller.inputDevice.TryGetFeatureValue(CommonUsages.primary2DAxis, out Vector2 joystick);
+            _viewingSetupHmd.transform.rotation *= Quaternion.Euler(new Vector3(0, joystick.x * 0.25f * rotationVelocity, 0));
         }
     }
 }

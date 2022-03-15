@@ -184,7 +184,7 @@ namespace Vrsys
                 _controller.inputDevice.TryGetFeatureValue(CommonUsages.primaryButton, out bool primaryButton);
                 if (primaryButton)
                 {
-                    photonView.RPC("AnnouceMessage", RpcTarget.All, "[PERFORMING] confirm navigator jumping position");
+                    photonView.RPC("AnnouceMessage", RpcTarget.All, "[PERFORMING] confirm navigator's jumping position");
                     photonView.RPC("SetPerformingStage", RpcTarget.All);
 
                     photonView.RPC("TogglePassengerPoint", RpcTarget.All, true);
@@ -207,7 +207,7 @@ namespace Vrsys
                 _controller.inputDevice.TryGetFeatureValue(CommonUsages.grip, out float gripper);
                 if (isValidPosition && gripper > 0.99f)
                 {
-                    photonView.RPC("AnnouceMessage", RpcTarget.All, "[PERFORMING] confirm passenger jumping position");
+                    photonView.RPC("AnnouceMessage", RpcTarget.All, "[PERFORMING] confirm passenger's jumping position");
                     photonView.RPC("SetFormingStage", RpcTarget.All, photonView.ViewID, _passengerId);
 
                     photonView.RPC("AnnouceMessage", RpcTarget.All, "[PERFORMING] group jumping");
