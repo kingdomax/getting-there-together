@@ -80,8 +80,8 @@ namespace Vrsys
 
         private void MapInput(Vector3 translationInput, Vector3 rotationInput) 
         {
-            _viewingSetupHmd.childAttachmentRoot.transform.position += translationInput;
-            _viewingSetupHmd.childAttachmentRoot.transform.rotation *= Quaternion.Euler(rotationInput);
+            _viewingSetupHmd.transform.position += translationInput;
+            _viewingSetupHmd.transform.rotation *= Quaternion.Euler(rotationInput);
         }
     }
 }

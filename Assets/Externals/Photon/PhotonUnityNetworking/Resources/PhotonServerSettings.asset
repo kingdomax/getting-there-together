@@ -63,6 +63,10 @@ MonoBehaviour:
   - SetFormingStage
   - UpdateMessageToAllClient
   - SetAdjourningStage
+  - AnnouceMessage
+  - SetPerformingStage
+  - ToggleLineRenderer
+  - TogglePassengerPoint
   DisableAutoOpenWizard: 1
   ShowSettings: 1
   DevRegionSetOnce: 1

@@ -21,6 +21,7 @@ namespace Vrsys
         [Header("User Settings")]
         [Tooltip("Configure user name, user prefab, color and avatar.")]
         public string userName = "";
+        public PrefabColor userColor = PrefabColor.Default;
 
         [Tooltip("OnJoinRoom User Prefab will be stored by name to PlayerPrefs. Make sure User Prefab Resource Directory is set accordingly.")]
         public SupportedDeviceType selectedDeviceType;

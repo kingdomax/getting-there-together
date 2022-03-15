@@ -1,4 +1,3 @@
-using System;
 using Photon.Pun;
 using UnityEngine;
 using UnityEngine.XR;
@@ -16,22 +15,22 @@ namespace Vrsys
         private SceneState _sceneState;
         private ViewingSetupHMDAnatomy _viewingSetupHmd;
         private AvatarHMDAnatomy _avatarHMDAnatomy;
-        private GameObject _xrRig;
         private GameObject _camera;
         private GameObject _rightHand;
         private XRController _controller;
         private LineRenderer _lineRenderer;
 
         // FORMING MEMBERS
+        private int _passengerId = -1;
         private GameObject _passenger;
         private GameObject _formingPoint;
         private GameObject _formingPassengerPreview;
 
         // PERFORMING MEMBERS
+        private float _circularDistance = 7f;
         private GameObject _circularZone;
         private GameObject _navigatorJumpingPoint;
         private GameObject _passengerJumpingPoint;
-        private bool _navigatorJumpingConfirmation;
 
         void Start()
         {
@@ -40,15 +39,22 @@ namespace Vrsys
 
         void Update()
         {
-            if (!AreDevicesReady()) { return; }
+            if (!AreDevicesReady()) 
+            { 
+                return; 
+            }
 
             var currentStage = _sceneState.GetNavigationStage();
+            var myRole = _sceneState.GetNavigationRole(photonView.ViewID);
             if (currentStage == NavigationStage.Adjourning) { Forming(); }
-            if (currentStage == NavigationStage.Forming || currentStage == NavigationStage.Performing) { Performing(); }
-            if (currentStage == NavigationStage.Forming || currentStage == NavigationStage.Performing) { Adjourning(); }
+            if (currentStage != NavigationStage.Adjourning) { Performing(currentStage, myRole); }
+            if (currentStage != NavigationStage.Adjourning) { Adjourning(myRole); }
 
-            ResetEverything();
-            Test(); // todo-moch: need to delete
+            if (Input.GetKeyDown(KeyCode.F5))
+            {
+                photonView.RPC("SetAdjourningStage", RpcTarget.All);
+                _viewingSetupHmd.Teleport(new Vector3(76f, 22f, 31f), Quaternion.identity, true);
+            }
         }
 
         private bool AreDevicesReady()
@@ -66,13 +72,10 @@ namespace Vrsys
                 _oneTimeSetup = true;
                 _sceneState = GameObject.Find("Scene Management").GetComponent<SceneState>();
 
-                _xrRig = _viewingSetupHmd.childAttachmentRoot;
                 _camera = _viewingSetupHmd.mainCamera;
                 _rightHand = _viewingSetupHmd.rightController;
                 _controller = _rightHand.GetComponent<XRController>();
-                
                 _lineRenderer = GetComponent<LineRenderer>();
-                _lineRenderer.material.color = _avatarHMDAnatomy.body.GetComponentInChildren<MeshRenderer>().material.color;
 
                 _formingPoint = GameObject.Find("Forming Intersection Point");
                 _formingPoint.GetComponent<MeshRenderer>().material.color = _lineRenderer.material.color;
@@ -84,16 +87,6 @@ namespace Vrsys
                 headModel.GetComponent<MeshRenderer>().material.color = Color.white;
                 arrowModel.GetComponent<MeshRenderer>().material.color = Color.white;
                 _formingPassengerPreview.SetActive(false);
-
-                // todo-moch: to be remove
-                _circularZone = Instantiate(Resources.Load("UserPrefabs/CircularZone"), Vector3.zero, Quaternion.identity) as GameObject;
-                _navigatorJumpingPoint = _circularZone.transform.Find("Navigator Jumping Point").gameObject;
-                _passengerJumpingPoint = _circularZone.transform.Find("Passenger Jumping Point").gameObject;
-                _navigatorJumpingPoint.GetComponent<MeshRenderer>().material.color = _lineRenderer.material.color;
-                _passengerJumpingPoint.GetComponent<MeshRenderer>().material.color = Color.red;
-                //_circularZone.SetActive(false);
-                _circularZone.SetActive(true); // should be trigger
-                _lineRenderer.enabled = true; // should be trigger
             }
 
             return _viewingSetupHmd != null;
@@ -108,14 +101,11 @@ namespace Vrsys
             _lineRenderer.enabled = gripper > 0.00001f;
             if (_lineRenderer.enabled)
             {
-                isRayHit = Physics.Raycast(_rightHand.transform.position,
-                                        _rightHand.transform.TransformDirection(Vector3.forward),
-                                        out RaycastHit hit, 7f, layerMask);
+                isRayHit = Physics.Raycast(_rightHand.transform.position, _rightHand.transform.TransformDirection(Vector3.forward), out RaycastHit hit, 7f, layerMask);
 
                 _formingPoint.SetActive(isRayHit);
                 _formingPoint.transform.position = hit.point;
-                _lineRenderer.SetPosition(0, _rightHand.transform.position);
-                _lineRenderer.SetPosition(1, isRayHit ? hit.point : _rightHand.transform.position + _rightHand.transform.TransformDirection(Vector3.forward) * 7);
+                NetworkUser.DrawLinearLine(_lineRenderer, _rightHand.transform.position, isRayHit ? hit.point : _rightHand.transform.position + _rightHand.transform.TransformDirection(Vector3.forward) * 7);
             }
             else
             {
@@ -138,145 +128,134 @@ namespace Vrsys
                 var lookRotation = Quaternion.LookRotation(_lineRenderer.GetPosition(1) - _formingPassengerPreview.transform.position);
                 _formingPassengerPreview.transform.rotation = Quaternion.Euler(0, lookRotation.eulerAngles.y, 0);
 
-                // all indicator disappear & teleport passenger and set _currentStage
+                // teleport passenger and prepare next stage
                 if (gripper < 0.00001f)
                 {
                     _formingPassengerPreview.SetActive(false);
 
-                    var passengerId = _sceneState.GetAnotherUser(photonView.ViewID);
-                    _passenger = PhotonView.Find(passengerId)?.gameObject ?? null;
-                    Debug.Log($"[FORMING] passenger: {_passenger?.name ?? "none"}");
+                    _passengerId = _sceneState.GetAnotherUser(photonView.ViewID);
+                    _passenger = PhotonView.Find(_passengerId)?.gameObject ?? null;
+                    photonView.RPC("AnnouceMessage", RpcTarget.All, $"[FORMING] passenger: {_passenger?.name ?? "none"}");
                     if (_passenger != null)
                     {
+                        photonView.RPC("SetFormingStage", RpcTarget.All, photonView.ViewID, _passengerId);
                         var passengerHeadRotation = _passenger.GetComponent<AvatarAnatomy>().head.transform.rotation; // read from object's avatar anatomy
                         var rotationOffset = _formingPassengerPreview.transform.rotation * (Quaternion.Inverse(passengerHeadRotation) * _passenger.transform.rotation);
                         var rotation = Quaternion.Euler(0, rotationOffset.eulerAngles.y, 0);
                         _passenger.GetComponent<NetworkUser>().Teleport(_formingPassengerPreview.transform.position, rotation, true); // write to object's view anatomy
-                        // _viewingSetupHmd.Teleport(_formingPassengerPreview.transform.position, rotation, true);
 
-                        photonView.RPC("SetFormingStage", RpcTarget.All, photonView.ViewID, passengerId);
+                        // prepare next stage
+                        _lineRenderer.enabled = true;
+                        _circularZone = PhotonNetwork.Instantiate("UserPrefabs/CircularZone", Vector3.zero, Quaternion.identity);
+                        _navigatorJumpingPoint = _circularZone.GetComponent<CircularZone>().NavigatorJumpingPoint;
+                        _passengerJumpingPoint = _circularZone.GetComponent<CircularZone>().PassengerJumpingPoint;
                     }
                 }
             }
         }
 
-        private void Performing()
+        private void Performing(NavigationStage stage, NavigationRole myRole)
         {
-            var myRole = _sceneState.GetNavigationRole(photonView.ViewID);
-            //var myRole = NavigationRole.Navigator;
-            if (myRole == NavigationRole.Navigator) { Performing_Navigator(); }
-            if (myRole == NavigationRole.Passenger) { Performing_Passenger(); }
+            // var myRole = NavigationRole.Navigator; // todo-moch-test
+            if (myRole == NavigationRole.Navigator) { Performing_Navigator(stage); }
+            if (myRole == NavigationRole.Passenger) { Performing_Passenger(stage); }
         }
 
-        private void Performing_Navigator()
+        private void Performing_Navigator(NavigationStage stage)
         {
-            // 1) Make circular functionality work #SATURDAY
-            // > connect linerenderer with Navigator Jumping Point, use same color as user #done
-            // > connect linerenderer with Passenger Jumping Point, use same color as user #done
-            // > use joystick to control Passenger Jumping Point with proper speed, script attch to passenger ball #done
-            // > display point when collide with direction cube --> change color of direction cube #done
-
             // render navigator ray
-            _lineRenderer.SetPosition(0, _rightHand.transform.position); 
-            _lineRenderer.SetPosition(1, _navigatorJumpingPoint.transform.position);
-            if (!_navigatorJumpingConfirmation)
+            NetworkUser.DrawQuadraticBezierCurve(
+                _lineRenderer,
+                _rightHand.transform.position,
+                _rightHand.transform.position + _rightHand.transform.TransformDirection(new Vector3(0, 1.5f, 1.5f)),
+                _navigatorJumpingPoint.transform.position);
+
+            if (stage != NavigationStage.Performing)
             {
                 // render circular zone depend on hand position
-                _circularZone.transform.position = _rightHand.transform.position + _rightHand.transform.TransformDirection(Vector3.forward) * 7; // todo-moch: be able to adjust position
                 _circularZone.transform.rotation = Quaternion.Euler(0, _rightHand.transform.rotation.eulerAngles.y, 0);
+                _circularZone.transform.position = _rightHand.transform.position + _rightHand.transform.TransformDirection(Vector3.forward) * _circularDistance;
+
+                // controling circular zone
+                _controller.inputDevice.TryGetFeatureValue(CommonUsages.primary2DAxis, out Vector2 joystick); // joystick is x,y = 0-->1
+                _circularDistance += (joystick.y * 0.1f);
 
                 // confirm circular zone -> prepare passenger selection stuff
                 _controller.inputDevice.TryGetFeatureValue(CommonUsages.primaryButton, out bool primaryButton);
                 if (primaryButton)
                 {
-                    Debug.Log("[PERFORMING] confirm navigator jumping position");
-                    _navigatorJumpingConfirmation = true;
+                    photonView.RPC("AnnouceMessage", RpcTarget.All, "[PERFORMING] confirm navigator jumping position");
+                    photonView.RPC("SetPerformingStage", RpcTarget.All);
 
-                    _passengerJumpingPoint.SetActive(true);
-                    // _passengerLine.SetActive(true);
+                    photonView.RPC("TogglePassengerPoint", RpcTarget.All, true);
+                    _passenger.GetComponent<NetworkUser>().ToggleLineRenderer(true);
                 }
             }
 
-            if (_navigatorJumpingConfirmation)
+            if (stage == NavigationStage.Performing)
             {
-                // render passenger ray
-                //_passengerLine.SetPosition(0, _passenger.rightHand.transform.position);
-                //_passengerLine.SetPosition(1, _passengerJumpingPoint.transform.position);
-
                 // render passenger jumping position by adjusting x and z of passengerPoint object
                 _controller.inputDevice.TryGetFeatureValue(CommonUsages.primary2DAxis, out Vector2 joystick); // joystick is x,y = 0-->1
                 _passengerJumpingPoint.transform.localPosition = new Vector3(
-                    _navigatorJumpingPoint.transform.localPosition.x + (joystick.x * 2.3f),
+                    _navigatorJumpingPoint.transform.localPosition.x + (joystick.x * 2.6f),
                     _navigatorJumpingPoint.transform.localPosition.y,
-                    _navigatorJumpingPoint.transform.localPosition.z + (joystick.y * 2.3f)
+                    _navigatorJumpingPoint.transform.localPosition.z + (joystick.y * 2.6f)
                 );
 
                 // confirm passenger position -> group teleport -> prepare navigator selection stuff
-                var isValidPosition = _passengerJumpingPoint.GetComponent<PropagateColor>().IsColliding();
+                var isValidPosition = _passengerJumpingPoint.GetComponent<PassengerPoint>().IsColliding();
                 _controller.inputDevice.TryGetFeatureValue(CommonUsages.grip, out float gripper);
                 if (isValidPosition && gripper > 0.99f)
                 {
-                    Debug.Log("[PERFORMING] confirm passenger jumping position");
-                    _navigatorJumpingConfirmation = false;
+                    photonView.RPC("AnnouceMessage", RpcTarget.All, "[PERFORMING] confirm passenger jumping position");
+                    photonView.RPC("SetFormingStage", RpcTarget.All, photonView.ViewID, _passengerId);
 
-                    Debug.Log("[PERFORMING] group jumping");
+                    photonView.RPC("AnnouceMessage", RpcTarget.All, "[PERFORMING] group jumping");
                     _viewingSetupHmd.Teleport(_navigatorJumpingPoint.transform.position, Quaternion.identity, false);
                     _passenger.GetComponent<NetworkUser>().Teleport(_passengerJumpingPoint.transform.position, Quaternion.identity, false);
 
-                    _passengerJumpingPoint.SetActive(false);
-                    // _passengerLine.SetActive(false); // remove comment
+                    photonView.RPC("TogglePassengerPoint", RpcTarget.All, false);
+                    _passenger.GetComponent<NetworkUser>().ToggleLineRenderer(false);
                 }
             }
-
-            // 3) Make circular zone and line as distributed object #SUNDAY
-            // > spawn this prefab as distributed object, photon.instantiate(prefab) and serialization position
-            // > make line as distributed object
-
-            // 4) Ability for passenger to cancel (primary button)
         }
 
-        private void Performing_Passenger()
+        private void Performing_Passenger(NavigationStage stage)
         {
-            // 1. Ability for passenger to cancel (primary button)
+            if (stage != NavigationStage.Performing) { return; }
+
+            // handle null or object reference mis-match
+            if (_circularZone == null || _circularZone.GetPhotonView().ViewID != _sceneState.GetCircularZone())
+            {
+                _circularZone = PhotonView.Find(_sceneState.GetCircularZone()).gameObject;
+                _navigatorJumpingPoint = _circularZone.GetComponent<CircularZone>().NavigatorJumpingPoint;
+                _passengerJumpingPoint = _circularZone.GetComponent<CircularZone>().PassengerJumpingPoint;
+            }
+
+            // render passenger ray
+            NetworkUser.DrawQuadraticBezierCurve(
+                _lineRenderer,
+                _rightHand.transform.position,
+                _rightHand.transform.position + _rightHand.transform.TransformDirection(new Vector3(0, 1.5f, 1.5f)),
+                _passengerJumpingPoint.transform.position);
+
+            // ability for passenger to cancel
+            _controller.inputDevice.TryGetFeatureValue(CommonUsages.primaryButton, out bool primaryButton);
+            if (primaryButton)
+            {
+                photonView.RPC("AnnouceMessage", RpcTarget.All, "[PERFORMING] passenger reset performing part");
+                photonView.RPC("SetFormingStage", RpcTarget.All, _sceneState.GetNavigator(), photonView.ViewID);
+                photonView.RPC("TogglePassengerPoint", RpcTarget.All, false);
+            }
         }
 
-        private void Adjourning()
+        private void Adjourning(NavigationRole myRole)
         {
             _controller.inputDevice.TryGetFeatureValue(CommonUsages.secondaryButton, out bool secondaryButton);
-            if (secondaryButton && _sceneState.GetNavigator() == photonView.ViewID)
+            if (secondaryButton && myRole == NavigationRole.Navigator)
             {
-                // todo-moch: maybe need to reset stuff and state of circular zone
-                Debug.Log("[ADJOURNING] group terminated");
+                photonView.RPC("AnnouceMessage", RpcTarget.All, "[ADJOURNING] group terminated");
                 photonView.RPC("SetAdjourningStage", RpcTarget.All);
-            }
-        }
-
-        private void ResetEverything()
-        {
-            if (Input.GetKeyDown(KeyCode.F5))
-            {
-                _xrRig.transform.localPosition = Vector3.zero;
-                _xrRig.transform.localRotation = Quaternion.identity;
-            }
-        }
-
-        private void Test()
-        {
-            Action ForceTeleport = () =>
-            {
-                var position = new Vector3(_xrRig.transform.position.x, _xrRig.transform.position.y, _xrRig.transform.position.z);
-                var rotation = _xrRig.transform.rotation;
-                //_sceneState.GetAnotherUser(photonView.ViewID)..GetComponent<NetworkUser>().Teleport(position, rotation);
-            };
-
-            if (Input.GetKeyDown(KeyCode.F1))
-            {
-                photonView.RPC("UpdateMessageToAllClient", RpcTarget.All);
-            }
-
-            if (Input.GetKeyDown(KeyCode.F2))
-            {
-                Debug.Log(_sceneState.GetLocalMessage());
             }
         }
     }

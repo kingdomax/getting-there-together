@@ -15,9 +15,6 @@ namespace Vrsys
         public bool setNameTagToNickname = true;
         [Tooltip("The spawn position of this NetworkUser")]
         public Vector3 spawnPosition = Vector3.zero;
-        public Vector3 spawnRotation = Vector3.zero;
-        public enum PrefabColor { Red, Blue, Default }
-        public PrefabColor color = PrefabColor.Default;
         public List<string> tags = new List<string>();
 
         // EXPOSED MEMBERS
@@ -38,24 +35,39 @@ namespace Vrsys
         // STATE
         private Vector3 receivedScale = Vector3.one;
         private bool hasPendingScaleUpdate { get { return (transform.localScale - receivedScale).magnitude > 0.001; } }
+        public LineRenderer lineRenderer;
+        private GameObject circularZoneObj;
 
         public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
         {
             if (stream.IsWriting && photonView.IsMine)
             {
                 stream.SendNext(viewingSetup.transform.lossyScale);
+                stream.SendNext(lineRenderer?.enabled ?? false);
             }
             else if (stream.IsReading)
             {
                 receivedScale = (Vector3)stream.ReceiveNext();
+                lineRenderer.enabled = (bool)stream.ReceiveNext();
             }
         }
 
         private void Update()
         {
-            if (!photonView.IsMine && hasPendingScaleUpdate)
+            if (photonView.IsMine) { return; }
+            
+            if (hasPendingScaleUpdate) { transform.localScale = Vector3.Lerp(transform.localScale, receivedScale, Time.deltaTime); }
+
+            var myRole = sceneState.GetNavigationRole(photonView.ViewID);
+            if (lineRenderer.enabled && myRole != NavigationRole.Observer) // locally render other's line renderer
             {
-                transform.localScale = Vector3.Lerp(transform.localScale, receivedScale, Time.deltaTime);
+                var circularZone = GetCurrentCircularZoneObj().GetComponent<CircularZone>();
+                var rightHand = ((AvatarHMDAnatomy)avatarAnatomy).handRight;
+                DrawQuadraticBezierCurve(
+                    lineRenderer,
+                    rightHand.transform.position,
+                    rightHand.transform.position + rightHand.transform.TransformDirection(new Vector3(0, 1.5f, 1.5f)),
+                    myRole == NavigationRole.Navigator ? circularZone.NavigatorJumpingPoint.transform.position : circularZone.PassengerJumpingPoint.transform.position);
             }
         }
 
@@ -107,7 +119,7 @@ namespace Vrsys
             if (viewingSetupAnatomy)
             {
                 // Make avatar's head, handleft, handright to be child of viewAnatomy's heaad, handleft, handright
-                avatarAnatomy.ConnectFrom(viewingSetupAnatomy); // Avatar/ViewSetup/viewhead --> avatarhead/viewhand --> avatarhand
+                avatarAnatomy.ConnectFrom(viewingSetupAnatomy); // Avatar / ViewSetup / viewhead --> avatarhead, viewhand --> avatarhand
             }
             else
             {
@@ -117,60 +129,9 @@ namespace Vrsys
 
         private void InitializeAvatar()
         {
-            //avatarAnatomy.nameTag.SetActive(false);
-            //Color clr = ParseColorFromPrefs(new Color(.6f, .6f, .6f));
-            Color clr = ParseColorFromPrefs(color);
+            var networkSetting = GameObject.Find("__NETWORKING__").transform.Find("Network Setup").gameObject;
+            Color clr = ParseColorFromPrefs(networkSetting.GetComponent<NetworkSetup>().userColor);
             photonView.RPC("SetColor", RpcTarget.AllBuffered, new object[] { new Vector3(clr.r, clr.g, clr.b) });
-        }
-
-        public void Teleport(Vector3 position, Quaternion rotation, bool withRotation)
-        {
-            photonView.RPC("Teleport", RpcTarget.All, position, rotation, withRotation);
-        }
-
-        [PunRPC]
-        public void Teleport(Vector3 position, Quaternion rotation, bool withRotation, PhotonMessageInfo info)
-        {
-            if (photonView.IsMine) // Let owner teleport his viewAvatar and other user just receive 
-            {
-                viewingSetupAnatomy.Teleport(position, rotation, withRotation);
-            }
-        }
-
-        [PunRPC]
-        public void SetFormingStage(int navigator, int passenger, PhotonMessageInfo info)
-        {
-            sceneState.SetFormingStage(navigator, passenger);
-        }
-
-        [PunRPC]
-        public void SetAdjourningStage(PhotonMessageInfo info)
-        {
-            sceneState.SetAdjourningStage();
-        }
-
-        [PunRPC]
-        public void UpdateMessageToAllClient(PhotonMessageInfo info) // todo-moch: to be removed
-        {
-            var msg = $"{System.DateTime.Now} (override msg by: {info.Sender})";
-            sceneState.UpdateMessage(msg);
-        }
-
-        [PunRPC]
-        void SetColor(Vector3 color)
-        {
-            avatarAnatomy.SetColor(new Color(color.x, color.y, color.z));
-        }
-
-        [PunRPC]
-        void SetName(string name)
-        {
-            gameObject.name = name + (photonView.IsMine ? " [Local User]" : " [External User]");
-            var nameTagTextComponent = avatarAnatomy.nameTag.GetComponentInChildren<TMP_Text>();
-            if (nameTagTextComponent && setNameTagToNickname)
-            {
-                nameTagTextComponent.text = name;
-            }
         }
 
         private Color ParseColorFromPrefs(PrefabColor col)
@@ -184,30 +145,109 @@ namespace Vrsys
             return new Color(.6f, .6f, .6f);
         }
 
-        private static Color ParseColorFromPrefs(Color fallback)
+        private GameObject GetCurrentCircularZoneObj()
         {
-            Color color;
-            switch (PlayerPrefs.GetString("UserColor"))
+            if (circularZoneObj == null || circularZoneObj.GetPhotonView().ViewID != sceneState.GetCircularZone())
             {
-                case "ColorBlack": color = new Color(.2f, .2f, .2f); break;
-                case "ColorRed": color = new Color(1f, 0f, 0f); break;
-                case "ColorGreen": color = new Color(0f, 1f, 0f); break;
-                case "ColorBlue": color = new Color(0f, 0f, 1f); break;
-                case "ColorPink": color = new Color(255f / 255f, 192f / 255f, 203 / 255f); break;
-                case "ColorWhite": color = new Color(1f, 1f, 1f); break;
-                default: color = fallback; break;
+                circularZoneObj = PhotonView.Find(sceneState.GetCircularZone()).gameObject;
             }
-            return color;
+            return circularZoneObj;
         }
 
-        private void HideHandsInFavorOfControllers()
+        public static void DrawLinearLine(LineRenderer line, Vector3 initialPoint, Vector3 endPoint)
         {
-            AvatarHMDAnatomy ahmda = GetComponent<AvatarHMDAnatomy>();
-            if (ahmda != null)
+            line.positionCount = 2;
+            line.SetPosition(0, initialPoint);
+            line.SetPosition(1, endPoint);
+        }
+
+        public static void DrawQuadraticBezierCurve(LineRenderer line, Vector3 initialPoint, Vector3 intermediatePoint, Vector3 endPoint)
+        {
+            line.positionCount = 200;
+            float t = 0f;
+            Vector3 B = new Vector3(0, 0, 0);
+            for (int i = 0; i < line.positionCount; i++)
             {
-                ahmda.handRight.SetActive(false);
-                ahmda.handLeft.SetActive(false);
+                B = (1 - t) * (1 - t) * initialPoint + 2 * (1 - t) * t * intermediatePoint + t * t * endPoint;
+                line.SetPosition(i, B);
+                t += (1 / (float)line.positionCount);
             }
+        }
+
+        public void Teleport(Vector3 position, Quaternion rotation, bool withRotation) 
+            => photonView.RPC("Teleport", RpcTarget.All, position, rotation, withRotation);
+
+        public void ToggleLineRenderer(bool isOn)
+            => photonView.RPC("ToggleLineRenderer", RpcTarget.All, isOn);
+
+        [PunRPC]
+        public void Teleport(Vector3 position, Quaternion rotation, bool withRotation, PhotonMessageInfo info)
+        {
+            if (photonView.IsMine) // Let owner teleport his viewAvatar and other user just receive from OnPhotonSerializeView
+            {
+                viewingSetupAnatomy.Teleport(position, rotation, withRotation);
+            }
+        }
+
+        [PunRPC]
+        public void ToggleLineRenderer(bool isOn, PhotonMessageInfo info)
+        {
+            if (photonView.IsMine) // Let owner toggle and other user just receive from OnPhotonSerializeView
+            {
+                lineRenderer.enabled = isOn;
+            }
+        }
+
+        [PunRPC]
+        public void TogglePassengerPoint(bool isOn)
+        {
+            GetCurrentCircularZoneObj().GetComponent<CircularZone>().PassengerJumpingPoint.SetActive(isOn);
+        }
+
+        [PunRPC]
+        public void SetFormingStage(int navigator, int passenger)
+        {
+            sceneState.SetFormingStage(navigator, passenger);
+        }
+
+        [PunRPC]
+        public void SetPerformingStage()
+        {
+            sceneState.SetPerformingStage();
+        }
+
+        [PunRPC]
+        public void SetAdjourningStage()
+        {
+            if (sceneState.GetCircularZone() != -1)
+            {
+                GetCurrentCircularZoneObj().SetActive(false);
+            }
+            sceneState.SetAdjourningStage();
+        }
+
+        [PunRPC]
+        void SetColor(Vector3 color)
+        {
+            avatarAnatomy.SetColor(new Color(color.x, color.y, color.z));
+            lineRenderer.material.color = new Color(color.x, color.y, color.z);
+        }
+
+        [PunRPC]
+        void SetName(string name)
+        {
+            gameObject.name = name + (photonView.IsMine ? " [Local User]" : " [External User]");
+            var nameTagTextComponent = avatarAnatomy.nameTag.GetComponentInChildren<TMP_Text>();
+            if (nameTagTextComponent && setNameTagToNickname)
+            {
+                nameTagTextComponent.text = name;
+            }
+        }
+
+        [PunRPC]
+        void AnnouceMessage(string message)
+        {
+            Debug.Log(message);
         }
     }
 }

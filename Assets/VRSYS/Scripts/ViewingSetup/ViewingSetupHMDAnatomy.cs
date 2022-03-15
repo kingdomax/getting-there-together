@@ -32,8 +32,8 @@ namespace Vrsys
         public override void Teleport(Vector3 position, Quaternion rotation, bool withRotation)
         {
             var bufferHeight = 0.5f;
-            childAttachmentRoot.transform.position = new Vector3(position.x, position.y+bufferHeight, position.z);
-            childAttachmentRoot.transform.rotation = withRotation ? rotation : childAttachmentRoot.transform.rotation;
+            transform.position = new Vector3(position.x, position.y+bufferHeight, position.z);
+            transform.rotation = withRotation ? rotation : childAttachmentRoot.transform.rotation;
         }
     }
 }

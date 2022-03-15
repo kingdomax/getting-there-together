@@ -4,23 +4,24 @@ using System.Collections.Generic;
 
 namespace Vrsys
 {
-    // No logic
+    // No logic, only data-driven class
     public class SceneState : MonoBehaviour
     {
+        private int CircularZoneID;
         private NavigationStage CurrentStage;
         private Dictionary<int, NavigationRole> AllUsers;
 
-        private string Message = "initial msg";// todo-moch: to be remove
-
         void Start()
         {
-            // CurrentStage = NavigationStage.Forming; // todo-moch: for testing
+            CircularZoneID = -1;
             CurrentStage = NavigationStage.Adjourning;
+            // CurrentStage = NavigationStage.Forming; // todo-moch-test
             AllUsers = new Dictionary<int, NavigationRole>();
         }
 
         public NavigationStage GetNavigationStage() => CurrentStage;
-
+        public int GetCircularZone() => CircularZoneID;
+        public void SetCircularZone(int id) => CircularZoneID = id;
         public void RomoveUserFromList(int userId) => AllUsers.Remove(userId);
         public void AppendUserToList(int userId) => AllUsers.Add(userId, NavigationRole.Observer);
         public int GetAnotherUser(int myId) => AllUsers.Where(u => u.Key != myId)?.FirstOrDefault().Key ?? -1;
@@ -34,18 +35,20 @@ namespace Vrsys
             AllUsers[navigator] = NavigationRole.Navigator;
             AllUsers[passenger] = NavigationRole.Passenger;
         }
-        
+
+        public void SetPerformingStage()
+        {
+            CurrentStage = NavigationStage.Performing;
+        }
+
         public void SetAdjourningStage()
         {
+            CircularZoneID = -1;
             CurrentStage = NavigationStage.Adjourning;
             foreach (var key in AllUsers.Keys.ToList())
             {
                 AllUsers[key] = NavigationRole.Observer;
             }
         }
-
-        // todo-moch: to be removed
-        public string GetLocalMessage() => Message;
-        public void UpdateMessage(string overrideMsg) => Message = overrideMsg;
     }
 }

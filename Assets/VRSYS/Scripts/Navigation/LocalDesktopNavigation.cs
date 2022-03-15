@@ -38,9 +38,6 @@ namespace Vrsys
             {
                 MapInput(CalcTranslationInput(), CalcRotationInput());
             }
-
-            ResetPos();
-            Test(); // todo-moch: need to delete
         }
 
         bool EnsureViewingSetup()
@@ -96,20 +93,6 @@ namespace Vrsys
             {
                 viewingSetup.mainCamera.transform.localRotation = Quaternion.Euler(rotInput.x, rotInput.y, 0.0f);
             }
-        }
-
-        private void ResetPos()
-        {
-            if (Input.GetKeyDown(KeyCode.F5))
-            {
-                viewingSetup.mainCamera.transform.localPosition = Vector3.zero;
-                viewingSetup.mainCamera.transform.localRotation = Quaternion.identity;
-            }
-        }
-
-        private void Test()
-        {
-
         }
     }
 }

@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace Vrsys
 {
-    public class PropagateColor : MonoBehaviour
+    public class PassengerPoint : MonoBehaviour
     {
         private Color _myColor;
         private Collider _collider;
