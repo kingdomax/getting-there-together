@@ -243,9 +243,11 @@ namespace Vrsys
             _controller.inputDevice.TryGetFeatureValue(CommonUsages.primaryButton, out bool primaryButton);
             if (primaryButton)
             {
-                photonView.RPC("AnnouceMessage", RpcTarget.All, "[PERFORMING] passenger reset performing part");
+                photonView.RPC("AnnouceMessage", RpcTarget.All, "[PERFORMING] passenger reset performing --> forming part");
+                
                 photonView.RPC("SetFormingStage", RpcTarget.All, _sceneState.GetNavigator(), photonView.ViewID);
                 photonView.RPC("TogglePassengerPoint", RpcTarget.All, false);
+                _lineRenderer.enabled = false;
             }
         }
 
