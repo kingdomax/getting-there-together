@@ -221,7 +221,9 @@ namespace Vrsys
         {
             if (sceneState.GetCircularZone() != -1)
             {
-                GetCurrentCircularZoneObj().SetActive(false);
+                var circularZoneObj = GetCurrentCircularZoneObj();
+                circularZoneObj.SetActive(false);
+                if (circularZoneObj.GetPhotonView().IsMine) { PhotonNetwork.Destroy(circularZoneObj); }
             }
             sceneState.SetAdjourningStage();
         }
