@@ -70,16 +70,18 @@ namespace Vrsys
             if (_viewingSetupHmd != null && !_oneTimeSetup)
             {
                 _oneTimeSetup = true;
-                _sceneState = GameObject.Find("Scene Management").GetComponent<SceneState>();
 
+                _sceneState = GameObject.Find("Scene Management").GetComponent<SceneState>();
                 _camera = _viewingSetupHmd.mainCamera;
                 _rightHand = _viewingSetupHmd.rightController;
                 _controller = _rightHand.GetComponent<XRController>();
                 _lineRenderer = GetComponent<LineRenderer>();
 
-                _formingPoint = GameObject.Find("Forming Intersection Point");
+                _formingPoint = GameObject.Find("Forming Point");
                 _formingPoint.GetComponent<MeshRenderer>().material.color = _lineRenderer.material.color;
-                _formingPassengerPreview = Instantiate(Resources.Load("UserPrefabs/Avatars/AvatarHMD-PosePreview"), Vector3.zero, Quaternion.identity) as GameObject;
+                _formingPoint.SetActive(false);
+
+                _formingPassengerPreview = GameObject.Find("Forming Passenger Preview");
                 var shirtModel = _formingPassengerPreview.transform.Find("Head/Body/shirtMale/default").gameObject;
                 var headModel = _formingPassengerPreview.transform.Find("Head/HeadModel/Head/HeadMesh").gameObject;
                 var arrowModel = _formingPassengerPreview.transform.Find("arrow_ring (2)/default").gameObject;
@@ -94,11 +96,10 @@ namespace Vrsys
 
         private void Forming()
         {
-            _controller.inputDevice.TryGetFeatureValue(CommonUsages.grip, out float gripper);
-
             // render ray and intersection point
-            var isRayHit = false;
+            _controller.inputDevice.TryGetFeatureValue(CommonUsages.grip, out float gripper);
             _lineRenderer.enabled = gripper > 0.00001f;
+            var isRayHit = false;
             if (_lineRenderer.enabled)
             {
                 isRayHit = Physics.Raycast(_rightHand.transform.position, _rightHand.transform.TransformDirection(Vector3.forward), out RaycastHit hit, 7f, layerMask);
@@ -134,8 +135,7 @@ namespace Vrsys
                     _formingPassengerPreview.SetActive(false);
 
                     _passengerId = _sceneState.GetAnotherUser(photonView.ViewID);
-                    _passenger = PhotonView.Find(_passengerId)?.gameObject ?? null;
-                    photonView.RPC("AnnouceMessage", RpcTarget.All, $"[FORMING] passenger: {_passenger?.name ?? "none"}");
+                    _passenger = PhotonView.Find(_passengerId)?.gameObject;
                     if (_passenger != null)
                     {
                         photonView.RPC("SetFormingStage", RpcTarget.All, photonView.ViewID, _passengerId);
@@ -150,6 +150,9 @@ namespace Vrsys
                         _navigatorJumpingPoint = _circularZone.GetComponent<CircularZone>().NavigatorJumpingPoint;
                         _passengerJumpingPoint = _circularZone.GetComponent<CircularZone>().PassengerJumpingPoint;
                     }
+
+                    var formingMsg = _passenger != null ? $"navigator={gameObject.name} / passenger={_passenger.name}" : "no passenger";
+                    photonView.RPC("AnnouceMessage", RpcTarget.All, $"[FORMING] {formingMsg}");
                 }
             }
         }
