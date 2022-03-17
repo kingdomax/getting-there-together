@@ -17296,7 +17296,7 @@ MonoBehaviour:
   networkSendRate: 20
   networkSerializationRate: 15
   maxUsers: 10
-  userName: TESTER
+  userName: Pramoch
   userColor: 1
   selectedDeviceType: 1
   supportedUserDevices:
